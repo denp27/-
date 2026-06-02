@@ -326,12 +326,13 @@ async def _show_confirm(msg, user_id: int, bot: Bot, check_type: str, amount, to
     if check_type == 'premium':
         extra_note = '\n<tg-emoji emoji-id="5870875489362513438">🗑</tg-emoji> <i>Не активируется, если у получателя уже есть Premium.</i>'
 
+    afford_icon = '<tg-emoji emoji-id="5870633910337015697">✅</tg-emoji>' if can_afford else '<tg-emoji emoji-id="5870657884844462243">❌</tg-emoji>'
     text = (
         f'<b><tg-emoji emoji-id="6032644646587338669">🎁</tg-emoji> Подтверждение чека</b>\n\n'
         f'<tg-emoji emoji-id="{icon}">🎁</tg-emoji> Содержимое: <b>{label}</b>\n'
         f'<tg-emoji emoji-id="5904462880941545555">🪙</tg-emoji> Стоимость: <b><code>{total:,.2f} ₽</code></b>\n'
         f'<tg-emoji emoji-id="5769126056262898415">👛</tg-emoji> Ваш баланс: <code>{balance:.2f} ₽</code>'
-        f'  {"<tg-emoji emoji-id=\"5870633910337015697\">✅</tg-emoji>" if can_afford else "<tg-emoji emoji-id=\"5870657884844462243\">❌</tg-emoji>"}\n\n'
+        f'  {afford_icon}\n\n'
         f'<blockquote><tg-emoji emoji-id="6028435952299413210">ℹ</tg-emoji> После создания чека вы получите '
         f'ссылку. Ваш друг получит {label} при переходе в бот.{extra_note}</blockquote>'
     )
