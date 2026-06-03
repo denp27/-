@@ -242,6 +242,7 @@ async def _show_adminka_text(bot: Bot, user_id: int):
     builder.button(text="Промокоды", callback_data="promo_menu", icon_custom_emoji_id="6032644646587338669")
     builder.button(text="Подарки", callback_data="admin_gifts", icon_custom_emoji_id="6032644646587338669")
     builder.button(text="Франшизы", callback_data="admin_franchises:0", icon_custom_emoji_id="5873147866364514353")
+    builder.button(text="Задания", callback_data="admin_tasks", icon_custom_emoji_id="5879905000972358125")
     builder.button(text=wr_label, callback_data="admin_withdraws:0", icon_custom_emoji_id="5879814368572478751")
     builder.button(text="Настройки", callback_data="settings", icon_custom_emoji_id="5870982283724328568")
     markup = builder.adjust(1, 2, 2, 2, 2, 2, 1).as_markup()
