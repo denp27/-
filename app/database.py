@@ -337,6 +337,465 @@ async def init_db():
 
         await conn.commit()
 
+# database.py
+import sqlite3
+from datetime import datetime
+from typing import List, Dict, Optional
+
+DATABASE_NAME = "bot.db"
+
+
+def init_db():
+    """Инициализация базы данных"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    # Таблица пользователей
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            user_id INTEGER PRIMARY KEY,
+            username TEXT,
+            first_name TEXT,
+            balance REAL DEFAULT 0,
+            registered_at TIMESTAMP
+        )
+    ''')
+    
+    # Таблица заданий
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            description TEXT,
+            reward REAL NOT NULL,
+            require_photo INTEGER DEFAULT 0,
+            instruction_text TEXT,
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP
+        )
+    ''')
+    
+    # Таблица выполненных заданий
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS completed_tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            task_id INTEGER,
+            photo_file_id TEXT,
+            proof_text TEXT,
+            status TEXT DEFAULT 'pending',
+            completed_at TIMESTAMP,
+            reviewed_by INTEGER DEFAULT NULL,
+            reviewed_at TIMESTAMP,
+            reward_given INTEGER DEFAULT 0,
+            FOREIGN KEY (user_id) REFERENCES users(user_id),
+            FOREIGN KEY (task_id) REFERENCES tasks(id)
+        )
+    ''')
+    
+    conn.commit()
+    conn.close()
+    print("База данных инициализирована")
+
+
+# ========== ФУНКЦИИ ДЛЯ ПОЛЬЗОВАТЕЛЕЙ ==========
+
+def add_user(user_id: int, username: str, first_name: str):
+    """Добавить пользователя"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT OR IGNORE INTO users (user_id, username, first_name, registered_at)
+        VALUES (?, ?, ?, ?)
+    ''', (user_id, username, first_name, datetime.now()))
+    conn.commit()
+    conn.close()
+
+
+def get_user(user_id: int):
+    """Получить пользователя"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))
+    user = cursor.fetchone()
+    conn.close()
+    return user
+
+
+def get_balance(user_id: int) -> float:
+    """Получить баланс"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    cursor.execute('SELECT balance FROM users WHERE user_id = ?', (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return row[0] if row else 0.0
+
+
+def update_balance(user_id: int, amount: float):
+    """Обновить баланс"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    cursor.execute('UPDATE users SET balance = balance + ? WHERE user_id = ?', (amount, user_id))
+    conn.commit()
+    conn.close()
+
+
+# ========== ФУНКЦИИ ДЛЯ ЗАДАНИЙ ==========
+
+def add_task(title: str, description: str, reward: float, require_photo: bool = False, instruction_text: str = None) -> int:
+    """Добавить новое задание"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO tasks (title, description, reward, require_photo, instruction_text, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (title, description, reward, 1 if require_photo else 0, instruction_text, datetime.now()))
+    task_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return task_id
+
+
+def get_active_tasks() -> List[Dict]:
+    """Получить активные задания"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT id, title, description, reward, require_photo, instruction_text 
+        FROM tasks WHERE is_active = 1 ORDER BY created_at DESC
+    ''')
+    rows = cursor.fetchall()
+    conn.close()
+    
+    tasks = []
+    for row in rows:
+        tasks.append({
+            'id': row[0],
+            'title': row[1],
+            'description': row[2],
+            'reward': row[3],
+            'require_photo': bool(row[4]),
+            'instruction_text': row[5]
+        })
+    return tasks
+
+
+def get_all_tasks() -> List[Dict]:
+    """Получить все задания"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM tasks ORDER BY created_at DESC')
+    rows = cursor.fetchall()
+    conn.close()
+    
+    tasks = []
+    for row in rows:
+        tasks.append({
+            'id': row[0],
+            'title': row[1],
+            'description': row[2],
+            'reward': row[3],
+            'require_photo': bool(row[4]),
+            'instruction_text': row[5],
+            'is_active': bool(row[6]),
+            'created_at': row[7]
+        })
+    return tasks
+
+
+def get_task_by_id(task_id: int) -> Optional[Dict]:
+    """Получить задание по ID"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM tasks WHERE id = ?', (task_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        return {
+            'id': row[0],
+            'title': row[1],
+            'description': row[2],
+            'reward': row[3],
+            'require_photo': bool(row[4]),
+            'instruction_text': row[5],
+            'is_active': bool(row[6]),
+            'created_at': row[7]
+        }
+    return None
+
+
+def update_task_status(task_id: int, is_active: bool):
+    """Обновить статус задания"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    cursor.execute('UPDATE tasks SET is_active = ? WHERE id = ?', (1 if is_active else 0, task_id))
+    conn.commit()
+    conn.close()
+
+
+def delete_task(task_id: int):
+    """Удалить задание"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM completed_tasks WHERE task_id = ?', (task_id,))
+    cursor.execute('DELETE FROM tasks WHERE id = ?', (task_id,))
+    conn.commit()
+    conn.close()
+
+
+# ========== ФУНКЦИИ ДЛЯ ВЫПОЛНЕНИЯ ЗАДАНИЙ ==========
+
+def is_task_completed(user_id: int, task_id: int) -> bool:
+    """Проверить, выполнено ли задание"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT 1 FROM completed_tasks 
+        WHERE user_id = ? AND task_id = ? AND status = 'completed'
+    ''', (user_id, task_id))
+    result = cursor.fetchone()
+    conn.close()
+    return result is not None
+
+
+def complete_task_without_photo(user_id: int, task_id: int, reward: float) -> bool:
+    """Выполнить задание без фото"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('BEGIN TRANSACTION')
+        
+        # Проверяем, не выполнено ли уже
+        cursor.execute('''
+            SELECT 1 FROM completed_tasks 
+            WHERE user_id = ? AND task_id = ? AND status = 'completed'
+        ''', (user_id, task_id))
+        
+        if cursor.fetchone():
+            conn.rollback()
+            return False
+        
+        # Добавляем запись о выполнении
+        cursor.execute('''
+            INSERT INTO completed_tasks (user_id, task_id, status, completed_at, reward_given)
+            VALUES (?, ?, 'completed', ?, 1)
+        ''', (user_id, task_id, datetime.now()))
+        
+        # Начисляем награду
+        cursor.execute('UPDATE users SET balance = balance + ? WHERE user_id = ?', (reward, user_id))
+        
+        conn.commit()
+        return True
+    except Exception as e:
+        conn.rollback()
+        print(f"Ошибка: {e}")
+        return False
+    finally:
+        conn.close()
+
+
+def create_submission(user_id: int, task_id: int, photo_file_id: str, proof_text: str, reward: float) -> int:
+    """Создать заявку на выполнение задания (с фото)"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        INSERT INTO completed_tasks (user_id, task_id, photo_file_id, proof_text, status, completed_at, reward_given)
+        VALUES (?, ?, ?, ?, 'pending', ?, 0)
+    ''', (user_id, task_id, photo_file_id, proof_text, datetime.now()))
+    
+    submission_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return submission_id
+
+
+def get_pending_submissions() -> List[Dict]:
+    """Получить все заявки на проверку"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT ct.*, t.title, t.reward 
+        FROM completed_tasks ct
+        JOIN tasks t ON ct.task_id = t.id
+        WHERE ct.status = 'pending'
+        ORDER BY ct.completed_at ASC
+    ''')
+    
+    rows = cursor.fetchall()
+    conn.close()
+    
+    submissions = []
+    for row in rows:
+        submissions.append({
+            'id': row[0],
+            'user_id': row[1],
+            'task_id': row[2],
+            'photo_file_id': row[3],
+            'proof_text': row[4],
+            'status': row[5],
+            'completed_at': row[6],
+            'task_title': row[9],
+            'reward': row[10]
+        })
+    return submissions
+
+
+def get_submission_by_id(submission_id: int) -> Optional[Dict]:
+    """Получить заявку по ID"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT ct.*, t.title, t.reward 
+        FROM completed_tasks ct
+        JOIN tasks t ON ct.task_id = t.id
+        WHERE ct.id = ?
+    ''', (submission_id,))
+    
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        return {
+            'id': row[0],
+            'user_id': row[1],
+            'task_id': row[2],
+            'photo_file_id': row[3],
+            'proof_text': row[4],
+            'status': row[5],
+            'completed_at': row[6],
+            'task_title': row[9],
+            'reward': row[10]
+        }
+    return None
+
+
+def approve_submission(submission_id: int, admin_id: int) -> bool:
+    """Одобрить заявку и выдать награду"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('BEGIN TRANSACTION')
+        
+        # Получаем заявку
+        cursor.execute('SELECT user_id, reward FROM completed_tasks WHERE id = ? AND status = "pending"', (submission_id,))
+        submission = cursor.fetchone()
+        
+        if not submission:
+            conn.rollback()
+            return False
+        
+        user_id, reward = submission
+        
+        # Обновляем статус заявки
+        cursor.execute('''
+            UPDATE completed_tasks 
+            SET status = 'completed', reviewed_by = ?, reviewed_at = ?, reward_given = 1
+            WHERE id = ?
+        ''', (admin_id, datetime.now(), submission_id))
+        
+        # Начисляем награду
+        cursor.execute('UPDATE users SET balance = balance + ? WHERE user_id = ?', (reward, user_id))
+        
+        conn.commit()
+        return True
+    except Exception as e:
+        conn.rollback()
+        print(f"Ошибка: {e}")
+        return False
+    finally:
+        conn.close()
+
+
+def reject_submission(submission_id: int, admin_id: int, reason: str) -> None:
+    """Отклонить заявку"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        UPDATE completed_tasks 
+        SET status = 'rejected', reviewed_by = ?, reviewed_at = ?, proof_text = ?
+        WHERE id = ?
+    ''', (admin_id, datetime.now(), reason, submission_id))
+    
+    conn.commit()
+    conn.close()
+
+
+def get_user_completed_tasks(user_id: int) -> List[Dict]:
+    """Получить выполненные задания пользователя"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT t.id, t.title, t.description, t.reward, ct.completed_at
+        FROM tasks t
+        JOIN completed_tasks ct ON t.id = ct.task_id
+        WHERE ct.user_id = ? AND ct.status = 'completed'
+        ORDER BY ct.completed_at DESC
+    ''', (user_id,))
+    
+    rows = cursor.fetchall()
+    conn.close()
+    
+    tasks = []
+    for row in rows:
+        tasks.append({
+            'id': row[0],
+            'title': row[1],
+            'description': row[2],
+            'reward': row[3],
+            'completed_at': row[4]
+        })
+    return tasks
+
+
+# ========== ФУНКЦИИ ДЛЯ СТАТИСТИКИ ==========
+
+def get_tasks_statistics() -> Dict:
+    """Получить статистику по заданиям"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    # Всего заданий
+    cursor.execute('SELECT COUNT(*) FROM tasks')
+    total_tasks = cursor.fetchone()[0]
+    
+    # Активных заданий
+    cursor.execute('SELECT COUNT(*) FROM tasks WHERE is_active = 1')
+    active_tasks = cursor.fetchone()[0]
+    
+    # Выполненных заданий
+    cursor.execute('SELECT COUNT(*) FROM completed_tasks WHERE status = "completed"')
+    completed_tasks = cursor.fetchone()[0]
+    
+    # Всего выдано наград
+    cursor.execute('SELECT SUM(reward) FROM completed_tasks WHERE status = "completed" AND reward_given = 1')
+    total_rewards = cursor.fetchone()[0] or 0
+    
+    # Заявок на проверку
+    cursor.execute('SELECT COUNT(*) FROM completed_tasks WHERE status = "pending"')
+    pending_submissions = cursor.fetchone()[0]
+    
+    conn.close()
+    
+    return {
+        'total_tasks': total_tasks,
+        'active_tasks': active_tasks,
+        'completed_tasks': completed_tasks,
+        'total_rewards': total_rewards,
+        'pending_submissions': pending_submissions
+    }
+
+
+print("Модуль database.py загружен")
+
 
 async def is_tx_sent(req_id: str) -> bool:
                                                                        
