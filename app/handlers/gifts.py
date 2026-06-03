@@ -446,8 +446,8 @@ async def send_gift_process(event: CallbackQuery | Message, bot: Bot, state: FSM
             pass
         return
 
-    queue_size = purchase_queue.queue_size()
-    wait_msg = f"\n\n⏳ В очереди перед вами: {queue_size}" if queue_size > 0 else ""
+    ahead = purchase_queue.queue_size() + (1 if purchase_queue.is_processing() else 0)
+    wait_msg = f"\n\n⏳ В очереди перед вами: {ahead}" if ahead > 0 else ""
     try:
         await bot.edit_message_text(
             text=(

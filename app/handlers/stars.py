@@ -332,8 +332,8 @@ async def quick_stars_buy(call: CallbackQuery, bot: Bot, state: FSMContext, fran
     username = data.get('username')
     await state.clear()
 
-    queue_size = purchase_queue.queue_size()
-    wait_msg = f"\n\n⏳ В очереди перед вами: {queue_size} покупок" if queue_size > 0 else ""
+    ahead = purchase_queue.queue_size() + (1 if purchase_queue.is_processing() else 0)
+    wait_msg = f"\n\n⏳ В очереди перед вами: {ahead} покупок" if ahead > 0 else ""
 
     await bot.edit_message_text(
         text=f'<tg-emoji emoji-id="5345906554510012647">🔄</tg-emoji> <b>Добавлено в очередь покупок...</b>{wait_msg}',
@@ -395,8 +395,8 @@ async def buy_stars_stars(message: Message, bot: Bot, state: FSMContext, franchi
     username = data.get('username')
     await state.clear()
 
-    queue_size = purchase_queue.queue_size()
-    wait_msg = f"\n\n⏳ В очереди перед вами: {queue_size} покупок" if queue_size > 0 else ""
+    ahead = purchase_queue.queue_size() + (1 if purchase_queue.is_processing() else 0)
+    wait_msg = f"\n\n⏳ В очереди перед вами: {ahead} покупок" if ahead > 0 else ""
 
     queued_msg = await bot.send_message(user_id, f'<tg-emoji emoji-id="5345906554510012647">🔄</tg-emoji> <b>Добавлено в очередь покупок...</b>{wait_msg}', parse_mode='HTML')
 
