@@ -796,6 +796,310 @@ def get_tasks_statistics() -> Dict:
 
 print("Модуль database.py загружен")
 
+# database.py (добавьте эти функции в конец файла)
+
+# ========== ДОПОЛНИТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ АДМИНКИ ==========
+
+def update_task_photo_requirement(task_id: int, require_photo: bool):
+    """Обновить требование фото для задания"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    cursor.execute('UPDATE tasks SET require_photo = ? WHERE id = ?', (1 if require_photo else 0, task_id))
+    conn.commit()
+    conn.close()
+
+
+def update_task_instruction(task_id: int, instruction_text: str):
+    """Обновить инструкцию задания"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    cursor.execute('UPDATE tasks SET instruction_text = ? WHERE id = ?', (instruction_text, task_id))
+    conn.commit()
+    conn.close()
+
+
+def get_pending_submissions_count() -> int:
+    """Получить количество заявок на проверку"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    cursor.execute('SELECT COUNT(*) FROM completed_tasks WHERE status = "pending"')
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
+
+
+def get_user_submissions(user_id: int) -> List[Dict]:
+    """Получить заявки пользователя"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT ct.*, t.title, t.reward 
+        FROM completed_tasks ct
+        JOIN tasks t ON ct.task_id = t.id
+        WHERE ct.user_id = ?
+        ORDER BY ct.completed_at DESC
+    ''', (user_id,))
+    
+    rows = cursor.fetchall()
+    conn.close()
+    
+    submissions = []
+    for row in rows:
+        submissions.append({
+            'id': row[0],
+            'user_id': row[1],
+            'task_id': row[2],
+            'photo_file_id': row[3],
+            'proof_text': row[4],
+            'status': row[5],
+            'completed_at': row[6],
+            'task_title': row[9],
+            'reward': row[10]
+        })
+    return submissions
+
+
+def get_all_submissions(limit: int = 50, offset: int = 0) -> List[Dict]:
+    """Получить все заявки с пагинацией"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT ct.*, t.title, t.reward, u.username
+        FROM completed_tasks ct
+        JOIN tasks t ON ct.task_id = t.id
+        JOIN users u ON ct.user_id = u.user_id
+        ORDER BY ct.completed_at DESC
+        LIMIT ? OFFSET ?
+    ''', (limit, offset))
+    
+    rows = cursor.fetchall()
+    conn.close()
+    
+    submissions = []
+    for row in rows:
+        submissions.append({
+            'id': row[0],
+            'user_id': row[1],
+            'task_id': row[2],
+            'photo_file_id': row[3],
+            'proof_text': row[4],
+            'status': row[5],
+            'completed_at': row[6],
+            'task_title': row[9],
+            'reward': row[10],
+            'username': row[11] if len(row) > 11 else 'Unknown'
+        })
+    return submissions
+
+
+def update_task_reward(task_id: int, reward: float):
+    """Обновить награду задания"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    cursor.execute('UPDATE tasks SET reward = ? WHERE id = ?', (reward, task_id))
+    conn.commit()
+    conn.close()
+
+
+def update_task_description(task_id: int, description: str):
+    """Обновить описание задания"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    cursor.execute('UPDATE tasks SET description = ? WHERE id = ?', (description, task_id))
+    conn.commit()
+    conn.close()
+
+
+def update_task_title(task_id: int, title: str):
+    """Обновить название задания"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    cursor.execute('UPDATE tasks SET title = ? WHERE id = ?', (title, task_id))
+    conn.commit()
+    conn.close()
+
+
+def get_completed_tasks_count(task_id: int) -> int:
+    """Получить количество выполнений задания"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    cursor.execute('SELECT COUNT(*) FROM completed_tasks WHERE task_id = ? AND status = "completed"', (task_id,))
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
+
+
+def get_task_completion_users(task_id: int, limit: int = 10) -> List[Dict]:
+    """Получить пользователей, выполнивших задание"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT u.user_id, u.username, ct.completed_at
+        FROM completed_tasks ct
+        JOIN users u ON ct.user_id = u.user_id
+        WHERE ct.task_id = ? AND ct.status = 'completed'
+        ORDER BY ct.completed_at DESC
+        LIMIT ?
+    ''', (task_id, limit))
+    
+    rows = cursor.fetchall()
+    conn.close()
+    
+    users = []
+    for row in rows:
+        users.append({
+            'user_id': row[0],
+            'username': row[1],
+            'completed_at': row[2]
+        })
+    return users
+
+
+def get_all_users(limit: int = 100, offset: int = 0) -> List[Dict]:
+    """Получить всех пользователей с пагинацией"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT user_id, username, first_name, balance, registered_at
+        FROM users
+        ORDER BY registered_at DESC
+        LIMIT ? OFFSET ?
+    ''', (limit, offset))
+    
+    rows = cursor.fetchall()
+    conn.close()
+    
+    users = []
+    for row in rows:
+        users.append({
+            'user_id': row[0],
+            'username': row[1],
+            'first_name': row[2],
+            'balance': row[3],
+            'registered_at': row[4]
+        })
+    return users
+
+
+def get_users_count() -> int:
+    """Получить количество пользователей"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    cursor.execute('SELECT COUNT(*) FROM users')
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
+
+
+def search_users(query: str) -> List[Dict]:
+    """Поиск пользователей по username или user_id"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT user_id, username, first_name, balance
+        FROM users
+        WHERE username LIKE ? OR CAST(user_id AS TEXT) LIKE ?
+        LIMIT 20
+    ''', (f'%{query}%', f'%{query}%'))
+    
+    rows = cursor.fetchall()
+    conn.close()
+    
+    users = []
+    for row in rows:
+        users.append({
+            'user_id': row[0],
+            'username': row[1],
+            'first_name': row[2],
+            'balance': row[3]
+        })
+    return users
+
+
+def get_user_statistics(user_id: int) -> Dict:
+    """Получить статистику пользователя"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    # Количество выполненных заданий
+    cursor.execute('SELECT COUNT(*) FROM completed_tasks WHERE user_id = ? AND status = "completed"', (user_id,))
+    completed = cursor.fetchone()[0]
+    
+    # Общая сумма наград
+    cursor.execute('SELECT SUM(reward) FROM completed_tasks WHERE user_id = ? AND status = "completed" AND reward_given = 1', (user_id,))
+    total_reward = cursor.fetchone()[0] or 0
+    
+    # Количество заявок на проверке
+    cursor.execute('SELECT COUNT(*) FROM completed_tasks WHERE user_id = ? AND status = "pending"', (user_id,))
+    pending = cursor.fetchone()[0]
+    
+    conn.close()
+    
+    return {
+        'completed_tasks': completed,
+        'total_reward': total_reward,
+        'pending_submissions': pending
+    }
+
+
+def reset_all_tasks():
+    """Сбросить все задания (только для отладки)"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM completed_tasks')
+    cursor.execute('DELETE FROM tasks')
+    cursor.execute("DELETE FROM sqlite_sequence WHERE name='tasks'")
+    cursor.execute("DELETE FROM sqlite_sequence WHERE name='completed_tasks'")
+    conn.commit()
+    conn.close()
+
+
+def get_task_submissions(task_id: int, status: str = None) -> List[Dict]:
+    """Получить заявки для конкретного задания"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    if status:
+        cursor.execute('''
+            SELECT ct.*, u.username
+            FROM completed_tasks ct
+            JOIN users u ON ct.user_id = u.user_id
+            WHERE ct.task_id = ? AND ct.status = ?
+            ORDER BY ct.completed_at DESC
+        ''', (task_id, status))
+    else:
+        cursor.execute('''
+            SELECT ct.*, u.username
+            FROM completed_tasks ct
+            JOIN users u ON ct.user_id = u.user_id
+            WHERE ct.task_id = ?
+            ORDER BY ct.completed_at DESC
+        ''', (task_id,))
+    
+    rows = cursor.fetchall()
+    conn.close()
+    
+    submissions = []
+    for row in rows:
+        submissions.append({
+            'id': row[0],
+            'user_id': row[1],
+            'photo_file_id': row[3],
+            'proof_text': row[4],
+            'status': row[5],
+            'completed_at': row[6],
+            'username': row[9] if len(row) > 9 else 'Unknown'
+        })
+    return submissions
+
+
+print("Все функции database.py загружены")
+
 
 async def is_tx_sent(req_id: str) -> bool:
                                                                        
