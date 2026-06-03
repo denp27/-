@@ -51,6 +51,7 @@ async def show_start(event, bot: Bot, franchise_id: int = 0):
     builder.button(text="Профиль", callback_data="profile", icon_custom_emoji_id="5870994129244131212")
     builder.button(text="Топ", callback_data="top_referrers", icon_custom_emoji_id="5870921681735781843")
     builder.button(text="Франшиза", callback_data="franchise", icon_custom_emoji_id="5873147866364514353")
+    builder.button(text="Задания", callback_data="tasks", icon_custom_emoji_id="5766994197705921104")
     builder.button(text="Поддержка 24/7", url=support_url, icon_custom_emoji_id="6039422865189638057")
     markup = builder.adjust(1, 1, 2, 2, 1, 2, 2, 1, 1).as_markup()
     await unified_send(event, bot, text, markup, photo=photo)
