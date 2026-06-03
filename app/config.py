@@ -10,11 +10,15 @@ load_dotenv(ENV_FILE)
 
 TOKEN = os.getenv("TOKEN")
 ADMINS_IDS = [int(x) for x in os.getenv("ADMINS_IDS", "").split(",") if x]
-COMMISSION_STARS = [int(os.getenv("COMMISSION_STARS", 30))]
-COMMISSION_NFT = [int(os.getenv("COMMISSION_NFT", 30))]
-COMMISSION_PREMIUM = [int(os.getenv("COMMISSION_PREMIUM", 30))]
-COMMISSION_TON = [int(os.getenv("COMMISSION_TON", 30))]
-COMMISSION_NUMBERS = [int(os.getenv("COMMISSION_NUMBERS", 30))]
+
+# Добавляем ADMIN_IDS как алиас для ADMINS_IDS (для совместимости)
+ADMIN_IDS = ADMINS_IDS
+
+COMMISSION_STARS = int(os.getenv("COMMISSION_STARS", 30))
+COMMISSION_NFT = int(os.getenv("COMMISSION_NFT", 30))
+COMMISSION_PREMIUM = int(os.getenv("COMMISSION_PREMIUM", 30))
+COMMISSION_TON = int(os.getenv("COMMISSION_TON", 30))
+COMMISSION_NUMBERS = int(os.getenv("COMMISSION_NUMBERS", 30))
 REFERRAL_PERCENT = int(os.getenv("REFERRAL_PERCENT", 30))
 API_KEY = os.getenv("API_KEY")
 MNEMONIC = os.getenv("MNEMONIC")
