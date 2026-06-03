@@ -421,6 +421,663 @@ async def list_promo(call: CallbackQuery, bot: Bot):
     builder.button(text="Назад", callback_data="promo_menu", icon_custom_emoji_id="5960671702059848143")
     await bot.edit_message_text(chat_id=user_id, message_id=call.message.message_id, text=text, parse_mode="HTML", reply_markup=builder.adjust(1).as_markup())
 
+# admin_tasks.py
+from aiogram import Router, F
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+
+from app.database import (
+    get_all_tasks, add_task, update_task_status, 
+    delete_task, get_task_by_id, update_task_photo_requirement,
+    get_pending_submissions, approve_submission, reject_submission,
+    get_submission_by_id
+)
+from app.config import ADMIN_IDS
+
+router = Router()
+
+# FSM состояния для добавления задания
+class AddTaskStates(StatesGroup):
+    waiting_for_title = State()
+    waiting_for_description = State()
+    waiting_for_reward = State()
+    waiting_for_require_photo = State()
+    waiting_for_instruction = State()
+
+
+def is_admin(user_id: int) -> bool:
+    return user_id in ADMIN_IDS
+
+
+# ========== УПРАВЛЕНИЕ ЗАДАНИЯМИ ==========
+
+@router.callback_query(F.data == "admin_tasks")
+async def admin_tasks_menu(callback: CallbackQuery):
+    """Админ-меню управления заданиями"""
+    user_id = callback.from_user.id
+    
+    if not is_admin(user_id):
+        await callback.answer("❌ Нет доступа!", show_alert=True)
+        return
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="➕ Добавить задание", callback_data="admin_add_task")],
+        [InlineKeyboardButton(text="📋 Список всех заданий", callback_data="admin_list_tasks")],
+        [InlineKeyboardButton(text="⏳ Заявки на проверку", callback_data="admin_pending_submissions")],
+        [InlineKeyboardButton(text="📊 Статистика заданий", callback_data="admin_tasks_stats")],
+        [InlineKeyboardButton(text="◀️ Назад", callback_data="adminka")]
+    ])
+    
+    await callback.message.edit_text(
+        "⚙️ <b>Управление заданиями</b>\n\n"
+        "Здесь вы можете:\n"
+        "• ➕ Добавлять новые задания\n"
+        "• 📋 Просматривать все задания\n"
+        "• 🔄 Активировать/деактивировать задания\n"
+        "• 🗑️ Удалять задания\n"
+        "• 📸 Проверять заявки с фото\n"
+        "• 📊 Смотреть статистику",
+        reply_markup=keyboard,
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "admin_add_task")
+async def admin_add_task_start(callback: CallbackQuery, state: FSMContext):
+    """Начать добавление нового задания"""
+    user_id = callback.from_user.id
+    
+    if not is_admin(user_id):
+        await callback.answer("❌ Нет доступа!", show_alert=True)
+        return
+    
+    await callback.message.edit_text(
+        "➕ <b>Добавление нового задания (Шаг 1/5)</b>\n\n"
+        "Введите <b>название</b> задания:\n"
+        "Пример: Подпишись на канал\n\n"
+        "Для отмены отправьте /cancel",
+        parse_mode="HTML"
+    )
+    await state.set_state(AddTaskStates.waiting_for_title)
+    await callback.answer()
+
+
+@router.message(AddTaskStates.waiting_for_title)
+async def admin_add_task_title(message: Message, state: FSMContext):
+    """Получить название задания"""
+    if message.text == "/cancel":
+        await state.clear()
+        await message.answer("❌ Добавление задания отменено")
+        return
+    
+    await state.update_data(title=message.text)
+    await message.answer(
+        "📝 <b>Шаг 2/5:</b> Введите <b>описание</b> задания:\n"
+        "Пример: Подпишись на наш Telegram канал и получи звезды\n\n"
+        "Для отмены отправьте /cancel",
+        parse_mode="HTML"
+    )
+    await state.set_state(AddTaskStates.waiting_for_description)
+
+
+@router.message(AddTaskStates.waiting_for_description)
+async def admin_add_task_description(message: Message, state: FSMContext):
+    """Получить описание задания"""
+    if message.text == "/cancel":
+        await state.clear()
+        await message.answer("❌ Добавление задания отменено")
+        return
+    
+    await state.update_data(description=message.text)
+    await message.answer(
+        "💰 <b>Шаг 3/5:</b> Введите <b>награду</b> за задание (в Stars):\n"
+        "Пример: 50\n\n"
+        "Награда должна быть положительным числом\n"
+        "Для отмены отправьте /cancel",
+        parse_mode="HTML"
+    )
+    await state.set_state(AddTaskStates.waiting_for_reward)
+
+
+@router.message(AddTaskStates.waiting_for_reward)
+async def admin_add_task_reward(message: Message, state: FSMContext):
+    """Получить награду"""
+    if message.text == "/cancel":
+        await state.clear()
+        await message.answer("❌ Добавление задания отменено")
+        return
+    
+    try:
+        reward = float(message.text)
+        if reward <= 0:
+            await message.answer("❌ Награда должна быть положительным числом! Попробуйте снова:")
+            return
+        
+        await state.update_data(reward=reward)
+        
+        # Спрашиваем, требуется ли фото
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📸 Да, требуется фото", callback_data="require_photo_yes")],
+            [InlineKeyboardButton(text="📝 Нет, фото не нужно", callback_data="require_photo_no")]
+        ])
+        
+        await message.answer(
+            "📸 <b>Шаг 4/5:</b> Требуется ли от пользователя фото подтверждение?\n\n"
+            "Выберите один из вариантов:",
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+        await state.set_state(AddTaskStates.waiting_for_require_photo)
+        
+    except ValueError:
+        await message.answer("❌ Пожалуйста, введите число! Попробуйте снова:")
+
+
+@router.callback_query(AddTaskStates.waiting_for_require_photo)
+async def admin_add_task_require_photo(callback: CallbackQuery, state: FSMContext):
+    """Обработка выбора требования фото"""
+    require_photo = (callback.data == "require_photo_yes")
+    await state.update_data(require_photo=require_photo)
+    
+    if require_photo:
+        await callback.message.edit_text(
+            "📝 <b>Шаг 5/5:</b> Введите <b>инструкцию</b> для пользователя:\n"
+            "Что именно нужно сфотографировать?\n\n"
+            "Пример: Сделай скриншот подписки на канал\n\n"
+            "Для пропуска отправьте 'пропустить'",
+            parse_mode="HTML"
+        )
+        await state.set_state(AddTaskStates.waiting_for_instruction)
+    else:
+        # Создаем задание без инструкции
+        data = await state.get_data()
+        task_id = await add_task(
+            title=data['title'],
+            description=data['description'],
+            reward=data['reward'],
+            task_type="stars",
+            require_photo=False
+        )
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="➕ Добавить еще", callback_data="admin_add_task")],
+            [InlineKeyboardButton(text="📋 Список заданий", callback_data="admin_list_tasks")],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="admin_tasks")]
+        ])
+        
+        await callback.message.edit_text(
+            f"✅ <b>Задание успешно добавлено!</b>\n\n"
+            f"📋 <b>Название:</b> {data['title']}\n"
+            f"📝 <b>Описание:</b> {data['description']}\n"
+            f"⭐ <b>Награда:</b> {data['reward']} Stars\n"
+            f"📸 <b>Фото:</b> Не требуется\n"
+            f"🆔 <b>ID задания:</b> {task_id}",
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+        await state.clear()
+    
+    await callback.answer()
+
+
+@router.message(AddTaskStates.waiting_for_instruction)
+async def admin_add_task_instruction(message: Message, state: FSMContext):
+    """Получить инструкцию и создать задание"""
+    if message.text == "/cancel":
+        await state.clear()
+        await message.answer("❌ Добавление задания отменено")
+        return
+    
+    instruction_text = message.text if message.text.lower() != "пропустить" else None
+    
+    data = await state.get_data()
+    task_id = await add_task(
+        title=data['title'],
+        description=data['description'],
+        reward=data['reward'],
+        task_type="stars",
+        require_photo=True,
+        instruction_text=instruction_text
+    )
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="➕ Добавить еще", callback_data="admin_add_task")],
+        [InlineKeyboardButton(text="📋 Список заданий", callback_data="admin_list_tasks")],
+        [InlineKeyboardButton(text="◀️ Назад", callback_data="admin_tasks")]
+    ])
+    
+    await message.answer(
+        f"✅ <b>Задание успешно добавлено!</b>\n\n"
+        f"📋 <b>Название:</b> {data['title']}\n"
+        f"📝 <b>Описание:</b> {data['description']}\n"
+        f"⭐ <b>Награда:</b> {data['reward']} Stars\n"
+        f"📸 <b>Фото:</b> Требуется\n"
+        f"📝 <b>Инструкция:</b> {instruction_text or 'Не указана'}\n"
+        f"🆔 <b>ID задания:</b> {task_id}",
+        reply_markup=keyboard,
+        parse_mode="HTML"
+    )
+    await state.clear()
+
+
+@router.callback_query(F.data == "admin_list_tasks")
+async def admin_list_tasks(callback: CallbackQuery):
+    """Показать список всех заданий"""
+    user_id = callback.from_user.id
+    
+    if not is_admin(user_id):
+        await callback.answer("❌ Нет доступа!", show_alert=True)
+        return
+    
+    tasks = await get_all_tasks()
+    
+    if not tasks:
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="➕ Добавить задание", callback_data="admin_add_task")],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="admin_tasks")]
+        ])
+        
+        await callback.message.edit_text(
+            "📋 <b>Список заданий</b>\n\n😕 Нет созданных заданий.",
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+    else:
+        keyboard_buttons = []
+        for task in tasks:
+            status_icon = "✅" if task['is_active'] else "❌"
+            photo_icon = "📸" if task.get('require_photo') else "📝"
+            keyboard_buttons.append([
+                InlineKeyboardButton(
+                    text=f"{status_icon} {photo_icon} {task['title']} (ID:{task['id']})",
+                    callback_data=f"edit_task_{task['id']}"
+                )
+            ])
+        
+        keyboard_buttons.append([InlineKeyboardButton(text="➕ Добавить задание", callback_data="admin_add_task")])
+        keyboard_buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="admin_tasks")])
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+        
+        text = "📋 <b>Список всех заданий</b>\n\n"
+        for task in tasks:
+            status_text = "Активно ✅" if task['is_active'] else "Неактивно ❌"
+            photo_text = "📸 С фото" if task.get('require_photo') else "📝 Без фото"
+            text += f"<b>{task['id']}. {task['title']}</b>\n"
+            text += f"   ⭐ {task['reward']} Stars | {status_text} | {photo_text}\n\n"
+        
+        await callback.message.edit_text(
+            text,
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+    
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("edit_task_"))
+async def admin_edit_task(callback: CallbackQuery):
+    """Редактировать задание"""
+    user_id = callback.from_user.id
+    
+    if not is_admin(user_id):
+        await callback.answer("❌ Нет доступа!", show_alert=True)
+        return
+    
+    task_id = int(callback.data.split("_")[2])
+    task = await get_task_by_id(task_id)
+    
+    if not task:
+        await callback.answer("❌ Задание не найдено!", show_alert=True)
+        return
+    
+    status_text = "Активно ✅" if task['is_active'] else "Неактивно ❌"
+    action_text = "Деактивировать" if task['is_active'] else "Активировать"
+    action_icon = "🔒" if task['is_active'] else "✅"
+    photo_status = "Требуется фото 📸" if task.get('require_photo') else "Фото не требуется 📝"
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"{action_icon} {action_text}", callback_data=f"toggle_task_{task_id}")],
+        [InlineKeyboardButton(text="🗑️ Удалить задание", callback_data=f"delete_task_{task_id}")],
+        [InlineKeyboardButton(text="◀️ Назад к списку", callback_data="admin_list_tasks")]
+    ])
+    
+    text = f"📋 <b>Редактирование задания #{task['id']}</b>\n\n"
+    text += f"📌 <b>Название:</b> {task['title']}\n"
+    text += f"📝 <b>Описание:</b> {task['description']}\n"
+    text += f"⭐ <b>Награда:</b> {task['reward']} Stars\n"
+    text += f"📊 <b>Статус:</b> {status_text}\n"
+    text += f"📸 <b>Фото:</b> {photo_status}\n"
+    if task.get('instruction_text'):
+        text += f"📖 <b>Инструкция:</b> {task['instruction_text']}\n"
+    text += f"📅 <b>Создано:</b> {task['created_at']}\n\n"
+    text += f"Выберите действие:"
+    
+    await callback.message.edit_text(
+        text,
+        reply_markup=keyboard,
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("toggle_task_"))
+async def admin_toggle_task(callback: CallbackQuery):
+    """Активировать/деактивировать задание"""
+    user_id = callback.from_user.id
+    
+    if not is_admin(user_id):
+        await callback.answer("❌ Нет доступа!", show_alert=True)
+        return
+    
+    task_id = int(callback.data.split("_")[2])
+    task = await get_task_by_id(task_id)
+    
+    if task:
+        new_status = not task['is_active']
+        await update_task_status(task_id, new_status)
+        status_text = "активировано ✅" if new_status else "деактивировано ❌"
+        await callback.answer(f"Задание {status_text}!")
+        await admin_list_tasks(callback)
+    else:
+        await callback.answer("❌ Задание не найдено!", show_alert=True)
+
+
+@router.callback_query(F.data.startswith("delete_task_"))
+async def admin_delete_task(callback: CallbackQuery):
+    """Удалить задание"""
+    user_id = callback.from_user.id
+    
+    if not is_admin(user_id):
+        await callback.answer("❌ Нет доступа!", show_alert=True)
+        return
+    
+    task_id = int(callback.data.split("_")[2])
+    task = await get_task_by_id(task_id)
+    
+    if task:
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Да, удалить", callback_data=f"confirm_delete_{task_id}")],
+            [InlineKeyboardButton(text="❌ Нет, отмена", callback_data=f"edit_task_{task_id}")]
+        ])
+        
+        await callback.message.edit_text(
+            f"⚠️ <b>Подтверждение удаления</b>\n\n"
+            f"Вы уверены, что хотите удалить задание?\n\n"
+            f"📌 <b>Название:</b> {task['title']}\n"
+            f"⭐ <b>Награда:</b> {task['reward']} Stars\n\n"
+            f"Это действие нельзя отменить!",
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+    else:
+        await callback.answer("❌ Задание не найдено!", show_alert=True)
+
+
+@router.callback_query(F.data.startswith("confirm_delete_"))
+async def admin_confirm_delete(callback: CallbackQuery):
+    """Подтверждение удаления задания"""
+    user_id = callback.from_user.id
+    
+    if not is_admin(user_id):
+        await callback.answer("❌ Нет доступа!", show_alert=True)
+        return
+    
+    task_id = int(callback.data.split("_")[2])
+    await delete_task(task_id)
+    
+    await callback.answer("✅ Задание удалено!", show_alert=True)
+    await admin_list_tasks(callback)
+
+
+# ========== МОДЕРАЦИЯ ЗАЯВОК ==========
+
+@router.callback_query(F.data == "admin_pending_submissions")
+async def admin_pending_submissions(callback: CallbackQuery):
+    """Показать заявки на проверку"""
+    user_id = callback.from_user.id
+    
+    if not is_admin(user_id):
+        await callback.answer("❌ Нет доступа!", show_alert=True)
+        return
+    
+    submissions = await get_pending_submissions()
+    
+    if not submissions:
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="admin_tasks")]
+        ])
+        
+        await callback.message.edit_text(
+            "✅ <b>Заявки на проверку</b>\n\n"
+            "Нет заявок, ожидающих проверки.",
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+    else:
+        text = "⏳ <b>Заявки на проверку заданий</b>\n\n"
+        
+        for sub in submissions:
+            text += f"🆔 Заявка #{sub['id']}\n"
+            text += f"👤 Пользователь ID: {sub['user_id']}\n"
+            text += f"📋 Задание ID: {sub['task_id']}\n"
+            text += f"⭐ Награда: {sub['reward']} Stars\n"
+            text += f"📅 Подана: {sub['created_at']}\n\n"
+        
+        # Создаем клавиатуру с заявками
+        keyboard_buttons = []
+        for sub in submissions:
+            keyboard_buttons.append([
+                InlineKeyboardButton(
+                    text=f"📸 Заявка #{sub['id']} (ID:{sub['user_id']})",
+                    callback_data=f"view_submission_{sub['id']}"
+                )
+            ])
+        
+        keyboard_buttons.append([InlineKeyboardButton(text="🔄 Обновить", callback_data="admin_pending_submissions")])
+        keyboard_buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="admin_tasks")])
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+        
+        await callback.message.edit_text(
+            text,
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+    
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("view_submission_"))
+async def admin_view_submission(callback: CallbackQuery, bot=None):
+    """Просмотреть заявку"""
+    user_id = callback.from_user.id
+    
+    if not is_admin(user_id):
+        await callback.answer("❌ Нет доступа!", show_alert=True)
+        return
+    
+    submission_id = int(callback.data.split("_")[2])
+    submission = await get_submission_by_id(submission_id)
+    
+    if not submission:
+        await callback.answer("❌ Заявка не найдена!", show_alert=True)
+        return
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Одобрить", callback_data=f"approve_submission_{submission_id}"),
+         InlineKeyboardButton(text="❌ Отклонить", callback_data=f"reject_submission_{submission_id}")],
+        [InlineKeyboardButton(text="◀️ Назад к списку", callback_data="admin_pending_submissions")]
+    ])
+    
+    # Отправляем фото пользователя
+    if submission.get('photo_file_id'):
+        await callback.message.delete()
+        await callback.message.answer_photo(
+            photo=submission['photo_file_id'],
+            caption=f"📸 <b>Просмотр заявки #{submission['id']}</b>\n\n"
+                   f"👤 Пользователь ID: {submission['user_id']}\n"
+                   f"📋 Задание ID: {submission['task_id']}\n"
+                   f"⭐ Награда: {submission['reward']} Stars\n"
+                   f"📝 Пояснение: {submission['proof_text'] or 'Нет пояснения'}\n\n"
+                   f"Выберите действие:",
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+    else:
+        await callback.message.edit_text(
+            f"📸 <b>Просмотр заявки #{submission['id']}</b>\n\n"
+            f"👤 Пользователь ID: {submission['user_id']}\n"
+            f"📋 Задание ID: {submission['task_id']}\n"
+            f"⭐ Награда: {submission['reward']} Stars\n"
+            f"📝 Пояснение: {submission['proof_text'] or 'Нет пояснения'}\n\n"
+            f"⚠️ Фото не загружено\n\n"
+            f"Выберите действие:",
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+    
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("approve_submission_"))
+async def admin_approve_submission(callback: CallbackQuery):
+    """Одобрить заявку и выдать награду"""
+    admin_id = callback.from_user.id
+    
+    if not is_admin(admin_id):
+        await callback.answer("❌ Нет доступа!", show_alert=True)
+        return
+    
+    submission_id = int(callback.data.split("_")[2])
+    submission = await get_submission_by_id(submission_id)
+    
+    if not submission:
+        await callback.answer("❌ Заявка не найдена!", show_alert=True)
+        return
+    
+    # Одобряем заявку и выдаем награду
+    success = await approve_submission(submission_id, admin_id)
+    
+    if success:
+        # Уведомляем пользователя
+        try:
+            from app.keyboards import main_menu
+            await callback.bot.send_message(
+                submission['user_id'],
+                f"✅ <b>Ваше задание одобрено!</b>\n\n"
+                f"Вы получили +{submission['reward']} Stars на баланс!\n"
+                f"Продолжайте выполнять задания!",
+                reply_markup=main_menu(submission['user_id'], False),
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            print(f"Не удалось уведомить пользователя {submission['user_id']}: {e}")
+        
+        await callback.answer(f"✅ Заявка #{submission_id} одобрена! Награда выдана.")
+        await admin_pending_submissions(callback)
+    else:
+        await callback.answer("❌ Ошибка при одобрении заявки!", show_alert=True)
+
+
+@router.callback_query(F.data.startswith("reject_submission_"))
+async def admin_reject_submission(callback: CallbackQuery, state: FSMContext):
+    """Отклонить заявку"""
+    admin_id = callback.from_user.id
+    
+    if not is_admin(admin_id):
+        await callback.answer("❌ Нет доступа!", show_alert=True)
+        return
+    
+    submission_id = int(callback.data.split("_")[2])
+    submission = await get_submission_by_id(submission_id)
+    
+    if not submission:
+        await callback.answer("❌ Заявка не найдена!", show_alert=True)
+        return
+    
+    # Сохраняем в состояние
+    await state.update_data(submission_id=submission_id, user_id=submission['user_id'])
+    
+    await callback.message.answer(
+        "❌ <b>Отклонение заявки</b>\n\n"
+        "Напишите причину отклонения (отправится пользователю):\n"
+        "Пример: Неверное фото, попробуйте еще раз\n\n"
+        "Для отмены отправьте /cancel",
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+
+@router.message(F.text & ~F.text.startswith('/'))
+async def process_rejection_reason(message: Message, state: FSMContext):
+    """Обработка причины отклонения"""
+    if not is_admin(message.from_user.id):
+        return
+    
+    data = await state.get_data()
+    submission_id = data.get('submission_id')
+    user_id = data.get('user_id')
+    
+    if submission_id and user_id:
+        reason = message.text
+        await reject_submission(submission_id, message.from_user.id, reason)
+        
+        # Уведомляем пользователя
+        try:
+            await message.bot.send_message(
+                user_id,
+                f"❌ <b>Ваше задание отклонено</b>\n\n"
+                f"<b>Причина:</b> {reason}\n\n"
+                f"Вы можете попробовать выполнить задание еще раз!",
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
+        
+        await message.answer(f"✅ Заявка #{submission_id} отклонена! Причина отправлена пользователю.")
+        await state.clear()
+        
+        # Возвращаемся в список заявок
+        from app.handlers.admin_tasks import admin_pending_submissions
+        await admin_pending_submissions(message)
+    else:
+        await message.answer("❌ Ошибка: заявка не найдена")
+
+
+@router.callback_query(F.data == "admin_tasks_stats")
+async def admin_tasks_statistics(callback: CallbackQuery):
+    """Показать статистику по заданиям"""
+    user_id = callback.from_user.id
+    
+    if not is_admin(user_id):
+        await callback.answer("❌ Нет доступа!", show_alert=True)
+        return
+    
+    from app.database import get_tasks_statistics
+    stats = await get_tasks_statistics()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📋 Список заданий", callback_data="admin_list_tasks")],
+        [InlineKeyboardButton(text="⏳ Заявки", callback_data="admin_pending_submissions")],
+        [InlineKeyboardButton(text="◀️ Назад", callback_data="admin_tasks")]
+    ])
+    
+    await callback.message.edit_text(
+        f"📊 <b>Статистика заданий</b>\n\n"
+        f"📋 <b>Всего заданий:</b> {stats['total_tasks']}\n"
+        f"✅ <b>Активных заданий:</b> {stats['active_tasks']}\n"
+        f"📝 <b>Выполнено заданий:</b> {stats['completed_tasks']}\n"
+        f"⭐ <b>Всего выдано наград:</b> {stats['total_rewards']} Stars\n"
+        f"⏳ <b>Заявок на проверку:</b> {stats['pending_submissions']}\n\n"
+        f"💡 <b>Совет:</b> Регулярно проверяйте заявки пользователей!",
+        reply_markup=keyboard,
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
 
 @router.callback_query(F.data == "mailing")
 async def mailing(call: CallbackQuery, bot: Bot, state: FSMContext):
