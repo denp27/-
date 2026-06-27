@@ -264,8 +264,8 @@ async def _show_adminka_text(bot: Bot, user_id: int):
         '</blockquote>\n\n'
         f'<tg-emoji emoji-id="5870930636742595124">📊</tg-emoji> <b>Наценки:</b>\n'
         f'<blockquote>'
-        f'Stars: {COMMISSION_STARS[0]}%  ·  TON: {COMMISSION_TON[0]}%  ·  Premium: {COMMISSION_PREMIUM[0]}%\n'
-        f'NFT: {COMMISSION_NFT[0]}%  ·  Номера: {COMMISSION_NUMBERS[0]}%'
+        f'Stars: {COMMISSION_STARS}%  ·  TON: {COMMISSION_TON}%  ·  Premium: {COMMISSION_PREMIUM}%\n'
+        f'NFT: {COMMISSION_NFT}%  ·  Номера: {COMMISSION_NUMBERS}%'
         '</blockquote>\n\n'
         '<tg-emoji emoji-id="6039451237743595514">📎</tg-emoji> <i>Выберите действие ниже</i>'
     )
