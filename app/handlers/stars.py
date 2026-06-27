@@ -131,7 +131,7 @@ async def custom_stars_amount(call: CallbackQuery, bot: Bot, state: FSMContext, 
 
     if star_price == 0:
         price = await fragment.get_price_star()
-        commission = Decimal(str(await effective_markup(COMMISSION_STARS[0], franchise_id)))
+        commission = Decimal(str(await effective_markup(COMMISSION_STARS, franchise_id)))
         star_price = price * (Decimal("1") + commission / Decimal("100"))
         star_price = star_price.quantize(Decimal("0.01"))
 
@@ -297,7 +297,7 @@ async def quick_stars_buy(call: CallbackQuery, bot: Bot, state: FSMContext, fran
     stars = int(call.data.split(":")[1])
 
     price = await fragment.get_price_star()
-    commission = Decimal(str(await effective_markup(COMMISSION_STARS[0], franchise_id)))
+    commission = Decimal(str(await effective_markup(COMMISSION_STARS, franchise_id)))
     star_price = price * (Decimal("1") + commission / Decimal("100"))
     star_price = star_price.quantize(Decimal("0.01"))
 
@@ -354,7 +354,7 @@ async def buy_stars_stars(message: Message, bot: Bot, state: FSMContext, franchi
     balance = await get_balance(user_id)
 
     price = await fragment.get_price_star()
-    commission = Decimal(str(await effective_markup(COMMISSION_STARS[0], franchise_id)))
+    commission = Decimal(str(await effective_markup(COMMISSION_STARS, franchise_id)))
     star_price = price * (Decimal("1") + commission / Decimal("100"))
     star_price = star_price.quantize(Decimal("0.01"))
 
