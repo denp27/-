@@ -461,11 +461,11 @@ async def settings(call: CallbackQuery, bot: Bot, state: FSMContext):
 
     builder = InlineKeyboardBuilder()
     # Наценки — 3 пары
-    builder.button(text=f"Stars {COMMISSION_STARS[0]}%", callback_data="change_commission_stars", icon_custom_emoji_id="5904462880941545555")
-    builder.button(text=f"TON {COMMISSION_TON[0]}%", callback_data="change_commission_ton", icon_custom_emoji_id="5769126056262898415")
-    builder.button(text=f"Premium {COMMISSION_PREMIUM[0]}%", callback_data="change_commission_premium", icon_custom_emoji_id="5884479287171485878")
-    builder.button(text=f"NFT {COMMISSION_NFT[0]}%", callback_data="change_commission_nft", icon_custom_emoji_id="6032644646587338669")
-    builder.button(text=f"Номера {COMMISSION_NUMBERS[0]}%", callback_data="change_commission_numbers", icon_custom_emoji_id="5346132555689119666")
+    builder.button(text=f"Stars {COMMISSION_STARS}%", callback_data="change_commission_stars", icon_custom_emoji_id="5904462880941545555")
+    builder.button(text=f"TON {COMMISSION_TON}%", callback_data="change_commission_ton", icon_custom_emoji_id="5769126056262898415")
+    builder.button(text=f"Premium {COMMISSION_PREMIUM}%", callback_data="change_commission_premium", icon_custom_emoji_id="5884479287171485878")
+    builder.button(text=f"NFT {COMMISSION_NFT}%", callback_data="change_commission_nft", icon_custom_emoji_id="6032644646587338669")
+    builder.button(text=f"Номера {COMMISSION_NUMBERS}%", callback_data="change_commission_numbers", icon_custom_emoji_id="5346132555689119666")
     builder.button(text=f"Рефералы {config.REFERRAL_PERCENT}%", callback_data="change_referral_percent", icon_custom_emoji_id="5870772616305839506")
     # Управление
     builder.button(text="Управление каналами", callback_data="manage_channels", icon_custom_emoji_id="6039422865189638057")
