@@ -92,7 +92,7 @@ async def buy_stars_self(call: CallbackQuery, bot: Bot, state: FSMContext, franc
         return
 
     price = await fragment.get_price_star()
-    commission = Decimal(str(await effective_markup(COMMISSION_STARS[0], franchise_id)))
+    commission = Decimal(str(await effective_markup(COMMISSION_STARS, franchise_id)))
     star_price = price * (Decimal("1") + commission / Decimal("100"))
     star_price = star_price.quantize(Decimal("0.01"))
 
