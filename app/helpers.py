@@ -263,12 +263,12 @@ async def franchise_branding(franchise_id: int = 0) -> tuple[str, str]:
                                                                                               
     from app.config import SUPPORT_URL
     if not franchise_id:
-        return "MstiStars", SUPPORT_URL
+        return "dAStars", SUPPORT_URL
     from app.database import get_franchise_by_id
     row = await get_franchise_by_id(franchise_id)
     if not row:
-        return "MstiStars", SUPPORT_URL
-    project_name = row[3] or "MstiStars"
+        return "dAStars", SUPPORT_URL
+    project_name = row[3] or "dAStars"
     support_url = row[7] if len(row) > 7 and row[7] else SUPPORT_URL
     return project_name, support_url
 
