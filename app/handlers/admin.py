@@ -236,7 +236,7 @@ async def _show_adminka_text(bot: Bot, user_id: int):
     wr_label = f"Заявки на вывод ({pending_wr})" if pending_wr else "Заявки на вывод"
 
     builder = InlineKeyboardBuilder()
-    builder.button(text="Рассылка", callback_data="mailing", icon_custom_emoji_id="6039422865189638057")
+    builder.button(text="Рассылка", callback_data="mailing", icon_custom_emoji_id="6039422865189638057", style="danger")
     builder.button(text="Пользователь", callback_data="info_user", icon_custom_emoji_id="5870994129244131212")
     builder.button(text="Очистка БД", callback_data="cleaner", icon_custom_emoji_id="5870875489362513438")
     builder.button(text="Выдать баланс", callback_data="give_balance", icon_custom_emoji_id="5879814368572478751")
@@ -245,7 +245,7 @@ async def _show_adminka_text(bot: Bot, user_id: int):
     builder.button(text="Подарки", callback_data="admin_gifts", icon_custom_emoji_id="6032644646587338669")
     builder.button(text="Франшизы", callback_data="admin_franchises:0", icon_custom_emoji_id="5873147866364514353")
     builder.button(text=wr_label, callback_data="admin_withdraws:0", icon_custom_emoji_id="5879814368572478751")
-    builder.button(text="Настройки", callback_data="settings", icon_custom_emoji_id="5870982283724328568")
+    builder.button(text="Настройки", callback_data="settings", icon_custom_emoji_id="5870982283724328568", style="danger")
     markup = builder.adjust(1, 2, 2, 2, 2, 2, 1).as_markup()
 
     balance = await wallet.get_balance_ton()
@@ -309,7 +309,7 @@ async def promo_menu(call: CallbackQuery, bot: Bot, state: FSMContext):
     builder = InlineKeyboardBuilder()
     builder.button(text="Создать", callback_data="create_promo", icon_custom_emoji_id="5870676941614354370")
     builder.button(text="Список", callback_data="list_promo", icon_custom_emoji_id="5870528606328852614")
-    builder.button(text="Удалить промокод", callback_data="delete_promo", icon_custom_emoji_id="5870875489362513438")
+    builder.button(text="Удалить промокод", callback_data="delete_promo", icon_custom_emoji_id="5870875489362513438", style="danger")
     builder.button(text="Назад", callback_data="adminka", icon_custom_emoji_id="5960671702059848143")
 
     await bot.edit_message_text(
@@ -743,13 +743,13 @@ async def manage_channels(call: CallbackQuery, bot: Bot):
         for i, (channel_id, channel_url, channel_name) in enumerate(channels, 1):
             display_name = channel_name if channel_name else f"Канал {i}"
             text += f"{i}. <b>{display_name}</b>\n   ├ ID: <code>{channel_id}</code>\n   └ URL: {channel_url}\n\n"
-            builder.button(text=f"🗑 Удалить {display_name}", callback_data=f"remove_channel_{i-1}", icon_custom_emoji_id="5870875489362513438")
+            builder.button(text=f"🗑 Удалить {display_name}", callback_data=f"remove_channel_{i-1}", icon_custom_emoji_id="5870875489362513438", style="danger")
         builder.adjust(1)
     else:
         text = '📢 <b>Обязательные каналы для подписки</b>\n\n❌ Каналы не настроены'
 
     builder.button(text="Добавить канал", callback_data="add_channel", icon_custom_emoji_id="5870676941614354370")
-    builder.button(text="Назад", callback_data="settings", icon_custom_emoji_id="5960671702059848143")
+    builder.button(text="Назад", callback_data="settings", icon_custom_emoji_id="5960671702059848143", style="danger")
     builder.adjust(1)
 
     await bot.edit_message_text(text=text, chat_id=user_id, message_id=call.message.message_id, parse_mode="HTML", reply_markup=builder.as_markup())
@@ -767,7 +767,7 @@ async def add_channel_start(call: CallbackQuery, bot: Bot, state: FSMContext):
         "💡 <i>Чтобы получить ID канала, перешлите сообщение из канала боту @username_to_id_bot</i>"
     )
     builder = InlineKeyboardBuilder()
-    builder.button(text="Отмена", callback_data="manage_channels", icon_custom_emoji_id="5870657884844462243")
+    builder.button(text="Отмена", callback_data="manage_channels", icon_custom_emoji_id="5870657884844462243", style="danger")
     await bot.edit_message_text(text=text, chat_id=user_id, message_id=call.message.message_id, parse_mode="HTML", reply_markup=builder.as_markup())
     await state.set_state(AdminState.wait_channel_id)
 
@@ -834,7 +834,7 @@ async def process_channel_id(message: Message, bot: Bot, state: FSMContext):
         )
 
         builder = InlineKeyboardBuilder()
-        builder.button(text="Отмена", callback_data="manage_channels", icon_custom_emoji_id="5870657884844462243")
+        builder.button(text="Отмена", callback_data="manage_channels", icon_custom_emoji_id="5870657884844462243", style="danger")
         await bot.send_message(user_id, text=text, parse_mode="HTML", reply_markup=builder.as_markup())
         await state.set_state(AdminState.wait_channel_url)
 
@@ -866,7 +866,7 @@ async def process_channel_url(message: Message, bot: Bot, state: FSMContext):
     await state.update_data(channel_url=channel_url)
 
     builder = InlineKeyboardBuilder()
-    builder.button(text="Отмена", callback_data="manage_channels", icon_custom_emoji_id="5870657884844462243")
+    builder.button(text="Отмена", callback_data="manage_channels", icon_custom_emoji_id="5870657884844462243", style="danger")
     await bot.send_message(
         user_id,
         "<b>➕ Добавление обязательного канала</b>\n\n⬇️ <b>Введите название канала (будет отображаться на кнопке):</b>\n\n📝 <b>Пример:</b> <code>Наш канал</code>\n\n💡 <i>Или отправьте '-' чтобы не указывать название</i>",
@@ -921,7 +921,7 @@ async def remove_channel_confirm(call: CallbackQuery, bot: Bot):
     display_name = channel_name if channel_name else f"Канал {channel_index + 1}"
 
     builder = InlineKeyboardBuilder()
-    builder.button(text="Да, удалить", callback_data=f"confirm_remove_{channel_id}", icon_custom_emoji_id="5870633910337015697")
+    builder.button(text="Да, удалить", callback_data=f"confirm_remove_{channel_id}", icon_custom_emoji_id="5870633910337015697", style="danger")
     builder.button(text="Отмена", callback_data="manage_channels", icon_custom_emoji_id="5870657884844462243")
     builder.adjust(1)
 
@@ -989,7 +989,7 @@ async def _build_user_card(bot: Bot, uid: int) -> tuple[str, any]:
 
     builder = InlineKeyboardBuilder()
     builder.button(text="Выдать баланс", callback_data=f"admin_add_balance:{uid}", icon_custom_emoji_id="5879814368572478751")
-    builder.button(text="Снять баланс", callback_data=f"admin_remove_balance:{uid}", icon_custom_emoji_id="5890848474563352982")
+    builder.button(text="Снять баланс", callback_data=f"admin_remove_balance:{uid}", icon_custom_emoji_id="5890848474563352982", style="danger")
 
     if is_banned:
         builder.button(
@@ -1001,11 +1001,12 @@ async def _build_user_card(bot: Bot, uid: int) -> tuple[str, any]:
         builder.button(
             text="Заблокировать",
             callback_data=f"admin_ban_ask:{uid}",
-            icon_custom_emoji_id="5870657884844462243"
+            icon_custom_emoji_id="5870657884844462243", 
+            style="danger"
         )
 
     builder.button(text="Обновить", callback_data=f"admin_refresh_user:{uid}", icon_custom_emoji_id="5345906554510012647")
-    builder.button(text="Назад", callback_data="adminka", icon_custom_emoji_id="5960671702059848143")
+    builder.button(text="Назад", callback_data="adminka", icon_custom_emoji_id="5960671702059848143", style="danger")
     markup = builder.adjust(2, 1, 1, 1).as_markup()
 
     return text, markup
@@ -1094,7 +1095,7 @@ async def admin_ban_ask(call: CallbackQuery, bot: Bot, state: FSMContext):
 
     builder = InlineKeyboardBuilder()
     builder.button(text="Без причины", callback_data=f"admin_ban_confirm:{target_id}:noreason", icon_custom_emoji_id="5870657884844462243")
-    builder.button(text="Отмена", callback_data=f"admin_refresh_user:{target_id}", icon_custom_emoji_id="5960671702059848143")
+    builder.button(text="Отмена", callback_data=f"admin_refresh_user:{target_id}", icon_custom_emoji_id="5960671702059848143", style="danger")
     builder.adjust(1)
 
     await bot.edit_message_text(
@@ -1124,7 +1125,7 @@ async def admin_ban_reason_text(message: Message, bot: Bot, state: FSMContext):
     msg_id = data.get("ban_msg_id")
 
     builder = InlineKeyboardBuilder()
-    builder.button(text="Подтвердить бан", callback_data=f"admin_ban_exec:{target_id}", icon_custom_emoji_id="5870633910337015697")
+    builder.button(text="Подтвердить бан", callback_data=f"admin_ban_exec:{target_id}", icon_custom_emoji_id="5870633910337015697", style="danger")
     builder.button(text="Отмена", callback_data=f"admin_refresh_user:{target_id}", icon_custom_emoji_id="5960671702059848143")
     builder.adjust(1)
 
@@ -1257,7 +1258,7 @@ async def admin_unban(call: CallbackQuery, bot: Bot, state: FSMContext):
 async def give_balance(call: CallbackQuery, bot: Bot, state: FSMContext):
     user_id = call.from_user.id
     builder = InlineKeyboardBuilder()
-    builder.button(text="Отмена", callback_data="adminka", icon_custom_emoji_id="5870657884844462243")
+    builder.button(text="Отмена", callback_data="adminka", icon_custom_emoji_id="5870657884844462243", style="danger")
     await bot.edit_message_text(
         text="<b>💸 Выдача баланса</b>\n\n⬇️ <b>Введите данные в формате:</b>\n<code>ID СУММА</code>\n\n📝 <b>Пример:</b> <code>123456789 500</code>\n└ Выдаст пользователю 123456789 сумму 500 ₽",
         chat_id=user_id, message_id=call.message.message_id, parse_mode="HTML", reply_markup=builder.as_markup()
@@ -1272,7 +1273,7 @@ async def admin_add_balance_callback(call: CallbackQuery, bot: Bot, state: FSMCo
     await state.update_data({"target_user_id": target_id})
 
     builder = InlineKeyboardBuilder()
-    builder.button(text="Отмена", callback_data="adminka", icon_custom_emoji_id="5870657884844462243")
+    builder.button(text="Отмена", callback_data="adminka", icon_custom_emoji_id="5870657884844462243", style="danger")
     await bot.edit_message_text(
         text=f"<b>💸 Выдача баланса</b>\n\n👤 <b>Пользователь:</b> <code>{target_id}</code>\n\n⬇️ <b>Введите сумму для выдачи:</b>\n└ Пример: 500",
         chat_id=user_id, message_id=call.message.message_id, parse_mode="HTML", reply_markup=builder.as_markup()
@@ -1331,7 +1332,7 @@ async def process_add_balance(message: Message, bot: Bot, state: FSMContext):
 async def take_balance(call: CallbackQuery, bot: Bot, state: FSMContext):
     user_id = call.from_user.id
     builder = InlineKeyboardBuilder()
-    builder.button(text="Отмена", callback_data="adminka", icon_custom_emoji_id="5870657884844462243")
+    builder.button(text="Отмена", callback_data="adminka", icon_custom_emoji_id="5870657884844462243", style="danger")
     await bot.edit_message_text(
         text="<b>💸 Снятие баланса</b>\n\n⬇️ <b>Введите данные в формате:</b>\n<code>ID СУММА</code>\n\n📝 <b>Пример:</b> <code>123456789 500</code>\n└ Снимет у пользователя 123456789 сумму 500 ₽",
         chat_id=user_id, message_id=call.message.message_id, parse_mode="HTML", reply_markup=builder.as_markup()
@@ -1346,7 +1347,7 @@ async def admin_remove_balance_callback(call: CallbackQuery, bot: Bot, state: FS
     await state.update_data({"target_user_id": target_id})
 
     builder = InlineKeyboardBuilder()
-    builder.button(text="Отмена", callback_data="adminka", icon_custom_emoji_id="5870657884844462243")
+    builder.button(text="Отмена", callback_data="adminka", icon_custom_emoji_id="5870657884844462243", style="danger")
     await bot.edit_message_text(
         text=f"<b>💸 Снятие баланса</b>\n\n👤 <b>Пользователь:</b> <code>{target_id}</code>\n\n⬇️ <b>Введите сумму для снятия:</b>\n└ Пример: 500",
         chat_id=user_id, message_id=call.message.message_id, parse_mode="HTML", reply_markup=builder.as_markup()
@@ -1466,7 +1467,7 @@ async def _build_franchises_page(page: int):
     for nav_text, nav_cb in nav:
         builder.button(text=nav_text, callback_data=nav_cb)
 
-    builder.button(text="Назад", callback_data="adminka", icon_custom_emoji_id="5960671702059848143")
+    builder.button(text="Назад", callback_data="adminka", icon_custom_emoji_id="5960671702059848143", style="danger")
     rows = [1] * len(franchises)
     if nav:
         rows.append(len(nav))
@@ -1526,10 +1527,11 @@ async def admin_franchise_detail(call: CallbackQuery, bot: Bot):
     toggle_text = "Деактивировать" if is_active else "Активировать"
     toggle_cb = f"admin_franchise_toggle:{fid}:{page}"
     toggle_emoji = "5870657884844462243" if is_active else "5870633910337015697"
+    toogle_colour = "danger" if is_active else "success"
 
     builder = InlineKeyboardBuilder()
-    builder.button(text=toggle_text, callback_data=toggle_cb, icon_custom_emoji_id=toggle_emoji)
-    builder.button(text="Удалить франшизу", callback_data=f"admin_franchise_del:{fid}:{page}", icon_custom_emoji_id="5870875489362513438")
+    builder.button(text=toggle_text, callback_data=toggle_cb, icon_custom_emoji_id=toggle_emoji, style=toogle_colour)
+    builder.button(text="Удалить франшизу", callback_data=f"admin_franchise_del:{fid}:{page}", icon_custom_emoji_id="5870875489362513438", style="danger")
     builder.button(text="Назад", callback_data=f"admin_franchises:{page}", icon_custom_emoji_id="5960671702059848143")
     builder.adjust(1)
 
@@ -1589,9 +1591,10 @@ async def admin_franchise_toggle(call: CallbackQuery, bot: Bot):
     )
     toggle_text = "Деактивировать" if is_active else "Активировать"
     toggle_emoji = "5870657884844462243" if is_active else "5870633910337015697"
+    toogle_colour = "danger" if is_active else "success"
     builder = InlineKeyboardBuilder()
-    builder.button(text=toggle_text, callback_data=f"admin_franchise_toggle:{fid}:{page}", icon_custom_emoji_id=toggle_emoji)
-    builder.button(text="Удалить франшизу", callback_data=f"admin_franchise_del:{fid}:{page}", icon_custom_emoji_id="5870875489362513438")
+    builder.button(text=toggle_text, callback_data=f"admin_franchise_toggle:{fid}:{page}", icon_custom_emoji_id=toggle_emoji, style=toogle_colour)
+    builder.button(text="Удалить франшизу", callback_data=f"admin_franchise_del:{fid}:{page}", icon_custom_emoji_id="5870875489362513438", style="danger")
     builder.button(text="Назад", callback_data=f"admin_franchises:{page}", icon_custom_emoji_id="5960671702059848143")
     builder.adjust(1)
     try:
@@ -1681,7 +1684,7 @@ async def _build_withdraws_page(page: int):
         for t, cb in nav:
             builder.button(text=t, callback_data=cb)
         rows.append(len(nav))
-    builder.button(text="Назад", callback_data="adminka", icon_custom_emoji_id="5960671702059848143")
+    builder.button(text="Назад", callback_data="adminka", icon_custom_emoji_id="5960671702059848143", style="danger")
     rows.append(1)
     builder.adjust(*rows)
     return text, builder.as_markup()
@@ -1749,7 +1752,7 @@ async def admin_withdraw_view(call: CallbackQuery, bot: Bot):
     )
     builder = InlineKeyboardBuilder()
     builder.button(text="✅ Оплачено", callback_data=f"adm_wr_approve:{req_id}:{back_page}")
-    builder.button(text="❌ Отклонить", callback_data=f"adm_wr_reject:{req_id}:{back_page}")
+    builder.button(text="❌ Отклонить", callback_data=f"adm_wr_reject:{req_id}:{back_page}", style="danger")
     builder.button(text="Назад к списку", callback_data=f"admin_withdraws:{back_page}", icon_custom_emoji_id="5960671702059848143")
     builder.adjust(2, 1)
 
@@ -1786,7 +1789,7 @@ async def admin_withdraw_approve_start(call: CallbackQuery, bot: Bot, state: FSM
 
     builder = InlineKeyboardBuilder()
     builder.button(text="Отмена", callback_data=f"adm_wr_view:{req_id}:{back_page}",
-                   icon_custom_emoji_id="5870657884844462243")
+                   icon_custom_emoji_id="5870657884844462243", style="danger")
 
     try:
         await bot.edit_message_text(
@@ -1823,7 +1826,7 @@ async def admin_withdraw_approve_check(message: Message, bot: Bot, state: FSMCon
     if not check_text:
         builder = InlineKeyboardBuilder()
         builder.button(text="Отмена", callback_data=f"admin_withdraws:{back_page}",
-                       icon_custom_emoji_id="5870657884844462243")
+                       icon_custom_emoji_id="5870657884844462243", style="danger")
         try:
             await bot.edit_message_text(
                 chat_id=user_id, message_id=bot_msg_id,
@@ -1899,7 +1902,7 @@ async def admin_withdraw_reject_start(call: CallbackQuery, bot: Bot, state: FSMC
 
     builder = InlineKeyboardBuilder()
     builder.button(text="Без причины", callback_data=f"adm_wr_reject_confirm:{req_id}:{back_page}:0")
-    builder.button(text="Отмена", callback_data=f"admin_withdraws:{back_page}", icon_custom_emoji_id="5870657884844462243")
+    builder.button(text="Отмена", callback_data=f"admin_withdraws:{back_page}", icon_custom_emoji_id="5870657884844462243", style="danger")
     builder.adjust(1)
 
     try:
@@ -2000,7 +2003,7 @@ async def _build_gifts_page():
         builder = InlineKeyboardBuilder()
         builder.button(text="➕ Добавить подарок", callback_data="admin_add_gift",
                        icon_custom_emoji_id="5870676941614354370")
-        builder.button(text="Назад", callback_data="adminka", icon_custom_emoji_id="5960671702059848143")
+        builder.button(text="Назад", callback_data="adminka", icon_custom_emoji_id="5960671702059848143", style="danger")
         return text, builder.adjust(1).as_markup()
 
     lines = []
@@ -2024,7 +2027,7 @@ async def _build_gifts_page():
         )
     builder.button(text="➕ Добавить подарок", callback_data="admin_add_gift",
                    icon_custom_emoji_id="5870676941614354370")
-    builder.button(text="Назад", callback_data="adminka", icon_custom_emoji_id="5960671702059848143")
+    builder.button(text="Назад", callback_data="adminka", icon_custom_emoji_id="5960671702059848143", style="danger")
 
     rows = [1] * len(gifts) + [1, 1]
     return text, builder.adjust(*rows).as_markup()
@@ -2070,7 +2073,7 @@ async def admin_gift_view(call: CallbackQuery, bot: Bot, state: FSMContext):
     builder.button(text=toggle_label, callback_data=f"admin_gift_toggle:{key}",
                    icon_custom_emoji_id="5870633910337015697")
     builder.button(text="🗑 Удалить", callback_data=f"admin_gift_del:{key}",
-                   icon_custom_emoji_id="5870875489362513438")
+                   icon_custom_emoji_id="5870875489362513438", style="danger")
     builder.button(text="🔙 Назад", callback_data="admin_gifts",
                    icon_custom_emoji_id="5960671702059848143")
     markup = builder.adjust(2, 1).as_markup()
@@ -2120,7 +2123,7 @@ async def admin_add_gift_start(call: CallbackQuery, bot: Bot, state: FSMContext)
 
     builder = InlineKeyboardBuilder()
     builder.button(text="Отмена", callback_data="admin_gifts",
-                   icon_custom_emoji_id="5870657884844462243")
+                   icon_custom_emoji_id="5870657884844462243", style="danger")
 
     await bot.edit_message_text(
         chat_id=call.from_user.id, message_id=call.message.message_id,
@@ -2159,7 +2162,7 @@ async def admin_add_gift_submit(message: Message, bot: Bot, state: FSMContext):
 
     builder = InlineKeyboardBuilder()
     builder.button(text="Отмена", callback_data="admin_gifts",
-                   icon_custom_emoji_id="5870657884844462243")
+                   icon_custom_emoji_id="5870657884844462243", style="danger")
 
     if len(parts) != 5:
         await bot.edit_message_text(
