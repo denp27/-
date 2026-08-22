@@ -236,7 +236,7 @@ async def _show_adminka_text(bot: Bot, user_id: int):
     wr_label = f"Заявки на вывод ({pending_wr})" if pending_wr else "Заявки на вывод"
 
     builder = InlineKeyboardBuilder()
-    builder.button(text="Рассылка", callback_data="mailing", icon_custom_emoji_id="6039422865189638057", style="danger")
+    builder.button(text="Рассылка", callback_data="mailing", icon_custom_emoji_id="6039422865189638057")
     builder.button(text="Пользователь", callback_data="info_user", icon_custom_emoji_id="5870994129244131212")
     builder.button(text="Очистка БД", callback_data="cleaner", icon_custom_emoji_id="5870875489362513438")
     builder.button(text="Выдать баланс", callback_data="give_balance", icon_custom_emoji_id="5879814368572478751")
@@ -332,7 +332,7 @@ async def creates_promo(call: CallbackQuery, bot: Bot, state: FSMContext):
         "Или нажмите 'Отмена' для возврата."
     )
     builder = InlineKeyboardBuilder()
-    builder.button(text="Отмена", callback_data="promo_menu", icon_custom_emoji_id="5870657884844462243")
+    builder.button(text="Отмена", callback_data="promo_menu", icon_custom_emoji_id="5870657884844462243", style="danger")
     await bot.edit_message_text(chat_id=user_id, message_id=call.message.message_id, text=text, parse_mode="HTML", reply_markup=builder.as_markup())
 
 
@@ -346,13 +346,13 @@ async def process_create_promo(message: Message, bot: Bot, state: FSMContext):
         max_uses = int(max_uses_str)
     except ValueError:
         builder = InlineKeyboardBuilder()
-        builder.button(text="Назад", callback_data="promo_menu", icon_custom_emoji_id="5960671702059848143")
+        builder.button(text="Назад", callback_data="promo_menu", icon_custom_emoji_id="5960671702059848143", style="danger")
         await bot.send_message(user_id, "❌ Неверный формат ввода. Используйте:\n<code>ПРОМОКОД НАГРАДА МАКС_ИСПОЛЬЗОВАНИЙ</code>", reply_markup=builder.adjust(1).as_markup(), parse_mode="HTML")
         await state.clear()
         return
 
     builder = InlineKeyboardBuilder()
-    builder.button(text="Назад", callback_data="promo_menu", icon_custom_emoji_id="5960671702059848143")
+    builder.button(text="Назад", callback_data="promo_menu", icon_custom_emoji_id="5960671702059848143", style="danger")
     markup = builder.adjust(1).as_markup()
 
     if await get_promo(promo_code):
@@ -371,7 +371,7 @@ async def deletes_promo(call: CallbackQuery, bot: Bot, state: FSMContext):
     await state.set_state(AdminState.wait_delete_promo)
 
     builder = InlineKeyboardBuilder()
-    builder.button(text="Отмена", callback_data="promo_menu", icon_custom_emoji_id="5870657884844462243")
+    builder.button(text="Отмена", callback_data="promo_menu", icon_custom_emoji_id="5870657884844462243", style="danger")
     await bot.edit_message_text(
         chat_id=user_id, message_id=call.message.message_id,
         text="<b>➖ Удаление промокода</b>\n\nВведите промокод для удаления или нажмите 'Отмена' для возврата.",
@@ -385,7 +385,7 @@ async def process_delete_promo(message: Message, bot: Bot, state: FSMContext):
     promo_code = message.text.strip()
 
     builder = InlineKeyboardBuilder()
-    builder.button(text="Назад", callback_data="promo_menu", icon_custom_emoji_id="5960671702059848143")
+    builder.button(text="Назад", callback_data="promo_menu", icon_custom_emoji_id="5960671702059848143", style="danger")
     markup = builder.adjust(1).as_markup()
 
     if not await get_promo(promo_code):
@@ -419,7 +419,7 @@ async def list_promo(call: CallbackQuery, bot: Bot):
             )
 
     builder = InlineKeyboardBuilder()
-    builder.button(text="Назад", callback_data="promo_menu", icon_custom_emoji_id="5960671702059848143")
+    builder.button(text="Назад", callback_data="promo_menu", icon_custom_emoji_id="5960671702059848143", style="danger")
     await bot.edit_message_text(chat_id=user_id, message_id=call.message.message_id, text=text, parse_mode="HTML", reply_markup=builder.adjust(1).as_markup())
 
 
@@ -471,7 +471,7 @@ async def settings(call: CallbackQuery, bot: Bot, state: FSMContext):
     builder.button(text=f"Рефералы {config.REFERRAL_PERCENT}%", callback_data="change_referral_percent", icon_custom_emoji_id="5870772616305839506")
     # Управление
     builder.button(text="Управление каналами", callback_data="manage_channels", icon_custom_emoji_id="6039422865189638057")
-    builder.button(text="Назад", callback_data="adminka", icon_custom_emoji_id="5960671702059848143")
+    builder.button(text="Назад", callback_data="adminka", icon_custom_emoji_id="5960671702059848143", style="danger")
 
     channels = await get_all_required_channels()
     channels_info = f'<tg-emoji emoji-id="6039422865189638057">📣</tg-emoji> <b>Каналов:</b> {len(channels)}' if channels else '<tg-emoji emoji-id="6039422865189638057">📣</tg-emoji> <b>Каналы:</b> не настроены'
@@ -606,7 +606,7 @@ async def change_commission_ton(call: CallbackQuery, bot: Bot, state: FSMContext
     await bot.edit_message_text(
         text=f"<b>Изменение наценки TON</b>\n\n<b>Текущая наценка:</b> {COMMISSION_TON[0]}%\n\n<b>Введите новую наценку в процентах:</b>\n└ Пример: 15 (для 15%)",
         chat_id=user_id, message_id=call.message.message_id, parse_mode="HTML",
-        reply_markup=InlineKeyboardBuilder().button(text="Отмена", callback_data="settings", icon_custom_emoji_id="5870657884844462243").as_markup()
+        reply_markup=InlineKeyboardBuilder().button(text="Отмена", callback_data="settings", icon_custom_emoji_id="5870657884844462243", style="danger").as_markup()
     )
     await state.set_state(AdminState.wait_new_commission)
     await state.update_data({"commission_type": "COMMISSION_TON"})
@@ -618,7 +618,7 @@ async def change_commission_premium(call: CallbackQuery, bot: Bot, state: FSMCon
     await bot.edit_message_text(
         text=f"<b>Изменение наценки Premium</b>\n\n<b>Текущая наценка:</b> {COMMISSION_PREMIUM[0]}%\n\n<b>Введите новую наценку в процентах:</b>\n└ Пример: 15 (для 15%)",
         chat_id=user_id, message_id=call.message.message_id, parse_mode="HTML",
-        reply_markup=InlineKeyboardBuilder().button(text="Отмена", callback_data="settings", icon_custom_emoji_id="5870657884844462243").as_markup()
+        reply_markup=InlineKeyboardBuilder().button(text="Отмена", callback_data="settings", icon_custom_emoji_id="5870657884844462243", style="danger").as_markup()
     )
     await state.set_state(AdminState.wait_new_commission)
     await state.update_data({"commission_type": "COMMISSION_PREMIUM"})
@@ -1016,7 +1016,7 @@ async def _build_user_card(bot: Bot, uid: int) -> tuple[str, any]:
 async def info_user(call: CallbackQuery, bot: Bot, state: FSMContext):
     user_id = call.from_user.id
     builder = InlineKeyboardBuilder()
-    builder.button(text="Отмена", callback_data="adminka", icon_custom_emoji_id="5870657884844462243")
+    builder.button(text="Отмена", callback_data="adminka", icon_custom_emoji_id="5870657884844462243", style="danger")
     await bot.edit_message_text(
         text=(
             "<b>👤 Информация о пользователе</b>\n\n"
@@ -1437,7 +1437,7 @@ async def _build_franchises_page(page: int):
             '<blockquote>Франшиз пока нет.</blockquote>'
         )
         builder = InlineKeyboardBuilder()
-        builder.button(text="Назад", callback_data="adminka", icon_custom_emoji_id="5960671702059848143")
+        builder.button(text="Назад", callback_data="adminka", icon_custom_emoji_id="5960671702059848143", style="danger")
         return text, builder.as_markup()
 
     text = (
